@@ -47,22 +47,15 @@ impl Todo{
 
 
     pub fn new() -> Self {
+        Todo{
+            list:vec!()
+        }
+    }
+
+    pub fn load() -> Option<Self>{
         match Self::read_from_file(Self::PATH){
-            Ok(todo)=>return todo,
-            Err(e)=>{
-                println!("Could no read tasks.json, a new empty list will be created. Error: {}",e);
-                let new_todo = Todo{
-                    list:vec!()
-                };
-
-                if let Err(save_error) = new_todo.save() {
-                    println!("Failed to save the new list: {}", save_error);
-                } else {
-                    println!("New empty list generated");
-                }
-
-                new_todo
-            }
+            Ok(todo)=>return Some(todo),
+            Err(_e)=>return None
         }
     }
 
@@ -149,7 +142,7 @@ impl Todo{
         self.list.sort_by(|a, b| b.priority.cmp(&a.priority));
     }
 
-    fn save(&self) -> Result<(), std::io::Error> {
+    pub fn save(&self) -> Result<(), std::io::Error> {
 
         // Create/open the file
         let mut f = File::create(Self::PATH)?;

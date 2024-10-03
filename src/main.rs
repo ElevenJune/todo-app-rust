@@ -58,24 +58,36 @@ enum Commands {
 }
 
 fn execute_cmd(cmd: &Commands, list:&mut Todo){
-    match &cmd {
+    match cmd {
         Commands::Add{task_name,priority} => {list.add(task_name,*priority); list.list();},
         Commands::Remove{index} => {
             match list.remove(index) {
                 Ok(_) => {list.list();},
                 Err(_) => println!("An index is out of bounds")
             }},
-            Commands::Rename{index,new_name} => {list.rename(*index,new_name); list.list();}
-            Commands::Clear => list.clear(),
-            Commands::Done{index} => {list.done(*index); list.list();},
-            Commands::Priority{index,new_priority} => {list.set_priority(*index,*new_priority); list.list();}
-            _ => list.list(),
+        Commands::Rename{index,new_name} => {list.rename(*index,new_name); list.list();}
+        Commands::Clear => list.clear(),
+        Commands::Done{index} => {list.done(*index); list.list();},
+        Commands::Priority{index,new_priority} => {list.set_priority(*index,*new_priority); list.list();}
+        _ => list.list(),
     }
 }
 
 fn main() {
     let args = Cli::parse();
-    let mut list = Todo::new();
+    let mut list = match Todo::load(){
+        Some(todo) => todo,
+        None => {
+           println!("Could no read tasks.json, a new empty list will be created.");
+           let new = Todo::new();
+           if let Err(save_error) = new.save() {
+                println!("Failed to save the new list: {}", save_error);
+            } else {
+                println!("New empty list generated");
+            }
+            new
+        }
+    };
     
     match args.command {
         None => list.list(),
