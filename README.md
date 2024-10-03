@@ -21,8 +21,8 @@ Command list :
 | add      |  Adds a task to the list.                         |
 | remove   |  Removes tasks from the list by their indexes.    |
 | done     |  Checks or unchecks a task as completed.         |
-| rename   |  Renames a specified task.                        |
-| priority |  Renames a specified task.                        |
+| rename   |  Renames a task.                        |
+| priority |  Sets priority of a task.               |
 | clear    |  Clears all tasks from the list.                  |
 | help     |  Prints this message or the help for specific commands. |
 
