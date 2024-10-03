@@ -3,10 +3,10 @@ mod todo;
 
 use crate::todo::Todo;
 
-/// A fictional versioning CLI
+/// A basic Todo app in Rust
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "todo")]
-#[command(about = "A fictional versioning CLI", long_about = None)]
+#[command(about = "A basic Todo app in Rust", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
