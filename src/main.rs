@@ -39,24 +39,36 @@ enum Commands {
         new_name: String,
     },
     ///Clear the list
-    Clear
+    Clear,
+    ///Check/Uncheck a task
+    #[command(arg_required_else_help = true)]
+    Done {
+        ///Index of the task to rename
+        index: usize,
+    },
 }
+
+fn execute_cmd(cmd: &Commands, list:&mut Todo){
+    match &cmd {
+        Commands::List => list.list(),
+        Commands::Add{task_name,priority} => {list.add(task_name,*priority); list.list();},
+        Commands::Remove{index} => {
+            match list.remove_vec(index) {
+                Ok(_) => {list.list();},
+                Err(_) => println!("An index out of bounds")
+            }},
+        Commands::Rename{index,new_name} => {list.rename(*index,new_name); list.list();}
+        Commands::Clear => list.clear(),
+        Commands::Done{index} => {list.done(*index); list.list();}
+    }
+}
+
 fn main() {
     let args = Cli::parse();
     let mut list = Todo::new();
     
     match args.command {
         None => list.list(),
-        Some(cmd) => match cmd {
-            Commands::List => list.list(),
-            Commands::Add{task_name,priority} => {list.add(task_name,priority); list.list();},
-            Commands::Remove{index} => {
-                match list.remove_vec(index) {
-                    Ok(_) => {list.list();},
-                    Err(_) => println!("An index out of bounds")
-                }},
-            Commands::Rename{index,new_name} => {list.rename(index,new_name); list.list();}
-            Commands::Clear => list.clear()
-        }
+        Some(cmd) => execute_cmd(&cmd,&mut list),
     }
 }

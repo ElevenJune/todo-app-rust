@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{File};
 use std::io::{self, Write, Read};
-
+use colored::*;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -17,9 +17,9 @@ pub struct Task{
 }
 
 impl Task{
-    pub fn new(name:String, priority:u8) -> Self {
+    pub fn new(name:&String, priority:u8) -> Self {
         Self{
-            name:name,
+            name:name.clone(),
             priority:priority,
             done:false
         }
@@ -34,21 +34,42 @@ impl Todo{
         match Self::read_from_file(Self::PATH){
             Ok(todo)=>return todo,
             Err(e)=>{
-                println!("Could no read tasks.json, initializing a new list. Error: {}",e);
-                return Todo{
+                println!("Could no read tasks.json, a new empty list will be created. Error: {}",e);
+                let new_todo = Todo{
                     list:vec!()
                 };
+
+                if let Err(save_error) = new_todo.save() {
+                    println!("Failed to save the new list: {}", save_error);
+                } else {
+                    println!("New empty list generated");
+                }
+
+                new_todo
             }
         }
     }
 
-    pub fn add(&mut self, name:String, priority:u8){
+    pub fn add(&mut self, name:&String, priority:u8){
         println!("{} added",name);
         self.list.push(Task::new(name,priority));
+        self.order_by_priority();
         let _ = self.save();
     }
 
-    pub fn remove_vec(&mut self, index:Vec<usize>) -> Result<(),()> {
+    pub fn done(&mut self, index:usize){
+        if index >= self.list.len() {
+            println!("Index out of bounds");
+            return;
+        }
+        self.list[index].done = !self.list[index].done;
+        match self.save() {
+            Ok(_) => println!("{} state changed",self.list[index].name),
+            Err(e) => println!("Error while changing state : {}",e)
+        }
+    }
+
+    pub fn remove_vec(&mut self, index:&Vec<usize>) -> Result<(),()> {
         let mut indexes = index.clone();
         indexes.sort();
         indexes.dedup();
@@ -58,13 +79,24 @@ impl Todo{
             }
             self.list.remove(*i);
         }
+        self.order_by_priority();
         let _ = self.save();
         Ok(())
     }
 
     pub fn list(&self){
         for i in 0..self.list.len() {
-            println!("{} - {}",i,self.list[i].name);
+            let task: &Task = &self.list[i];
+            let mut displayed_name = task.name.normal();
+            if task.done{
+                displayed_name = task.name.strikethrough();
+            }
+            displayed_name = match task.priority{
+                0..=2 => displayed_name,
+                3..=6 => displayed_name.red(),
+                _ => displayed_name.red().bold(),
+            };
+            println!("{} - {}",i,displayed_name);
         }
     }
 
@@ -76,17 +108,21 @@ impl Todo{
         }
     }
 
-    pub fn rename(&mut self, index:usize, name:String){
+    pub fn rename(&mut self, index:usize, name:&String){
         if index >= self.list.len() {
             println!("Index out of bounds");
             return;
         }
         let old_name = self.list[index].name.clone();
-        self.list[index].name = name;
+        self.list[index].name = name.clone();
         match self.save() {
             Ok(_) => println!("{} renamed to {}",old_name,self.list[index].name),
             Err(e) => println!("Error while renaming : {}",e)
         }
+    }
+
+    fn order_by_priority(&mut self){
+        self.list.sort_by(|a, b| b.priority.cmp(&a.priority));
     }
 
     fn save(&self) -> Result<(), std::io::Error> {
