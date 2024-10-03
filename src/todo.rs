@@ -52,7 +52,7 @@ impl Todo{
 
     pub fn add(&mut self, name:&String, priority:u8){
         println!("{} added",name);
-        self.list.push(Task::new(name,priority));
+        self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
         self.order_by_priority();
         let _ = self.save();
     }
@@ -96,7 +96,7 @@ impl Todo{
                 3..=6 => displayed_name.red(),
                 _ => displayed_name.red().bold(),
             };
-            println!("{} - {}",i,displayed_name);
+            println!("{} - {} [{}]",i,displayed_name,task.priority);
         }
     }
 
@@ -118,6 +118,23 @@ impl Todo{
         match self.save() {
             Ok(_) => println!("{} renamed to {}",old_name,self.list[index].name),
             Err(e) => println!("Error while renaming : {}",e)
+        }
+    }
+
+    pub fn set_priority(&mut self, index:usize, priority:u8){
+        if index >= self.list.len() {
+            println!("Index out of bounds");
+            return;
+        }
+        self.list[index].priority = priority;
+        match self.save() {
+            Ok(_) => {
+                println!("{} priority changed to {}",
+                self.list[index].name.clone(),
+                self.list[index].priority);
+                self.order_by_priority();
+            }
+            Err(e) => println!("Error while changing priority : {}",e)
         }
     }
 

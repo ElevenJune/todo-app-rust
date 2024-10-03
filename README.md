@@ -15,15 +15,16 @@ __Usage: todo [COMMAND]__
 
 Command list :
 
-| Name   |  Description                                      |
-|--------|---------------------------------------------------|
-| list   |  Lists all tasks in the to-do list.              |
-| add    |  Adds a task to the list.                         |
-| remove |  Removes tasks from the list by their indexes.    |
-| rename |  Renames a specified task.                        |
-| clear  |  Clears all tasks from the list.                  |
-| done   |  Checks or unchecks a task as completed.         |
-| help   |  Prints this message or the help for specific commands. |
+| Name     |  Description                                      |
+|----------|---------------------------------------------------|
+| list     |  Lists all tasks in the to-do list.              |
+| add      |  Adds a task to the list.                         |
+| remove   |  Removes tasks from the list by their indexes.    |
+| done     |  Checks or unchecks a task as completed.         |
+| rename   |  Renames a specified task.                        |
+| priority |  Renames a specified task.                        |
+| clear    |  Clears all tasks from the list.                  |
+| help     |  Prints this message or the help for specific commands. |
 
 
 ## Usage/Examples
