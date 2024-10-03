@@ -3,11 +3,7 @@ use std::fs::{File};
 use std::io::{self, Write, Read};
 use colored::*;
 
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Todo{
-    pub list: Vec<Task>
-}
+//==== Task
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Task{
@@ -24,6 +20,26 @@ impl Task{
             done:false
         }
     }
+
+    pub fn to_formated_string(&self) -> ColoredString{
+        let mut displayed_name = self.name.normal();
+        if self.done {
+            displayed_name = displayed_name.strikethrough();
+        }
+        displayed_name = match self.priority{
+            0..=2 => displayed_name,
+            3..=6 => displayed_name.red(),
+            _ => displayed_name.red().bold(),
+        };
+        displayed_name
+    }
+}
+
+//==== Todo
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Todo{
+    pub list: Vec<Task>
 }
 
 impl Todo{
@@ -69,7 +85,7 @@ impl Todo{
         }
     }
 
-    pub fn remove_vec(&mut self, index:&Vec<usize>) -> Result<(),()> {
+    pub fn remove(&mut self, index:&Vec<usize>) -> Result<(),()> {
         let mut indexes = index.clone();
         indexes.sort();
         indexes.dedup();
@@ -87,16 +103,7 @@ impl Todo{
     pub fn list(&self){
         for i in 0..self.list.len() {
             let task: &Task = &self.list[i];
-            let mut displayed_name = task.name.normal();
-            if task.done{
-                displayed_name = task.name.strikethrough();
-            }
-            displayed_name = match task.priority{
-                0..=2 => displayed_name,
-                3..=6 => displayed_name.red(),
-                _ => displayed_name.red().bold(),
-            };
-            println!("{} - {} [{}]",i,displayed_name,task.priority);
+            println!("{} - {} [{}]",i,task.to_formated_string(),task.priority);
         }
     }
 

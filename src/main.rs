@@ -61,9 +61,9 @@ fn execute_cmd(cmd: &Commands, list:&mut Todo){
     match &cmd {
         Commands::Add{task_name,priority} => {list.add(task_name,*priority); list.list();},
         Commands::Remove{index} => {
-            match list.remove_vec(index) {
+            match list.remove(index) {
                 Ok(_) => {list.list();},
-                Err(_) => println!("An index out of bounds")
+                Err(_) => println!("An index is out of bounds")
             }},
             Commands::Rename{index,new_name} => {list.rename(*index,new_name); list.list();}
             Commands::Clear => list.clear(),
