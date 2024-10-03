@@ -3,12 +3,13 @@
 
 Basic to-do app to learn Rust and use crates
 
+![Example screenshot](./todo-example.gif)
+
 
 ## Authors
 
 - [@elevenJune](https://github.com/ElevenJune)
 
-  ![Example screenshot](./todo-example.gif)
 
 
 ## Usage
