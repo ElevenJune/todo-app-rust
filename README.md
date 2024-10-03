@@ -13,18 +13,24 @@ Basic to-do app to learn Rust and use crates
 
 __Usage: todo [COMMAND]__
 
-Command list :
+### Commands
 
-| Name     |  Description                                      |
-|----------|---------------------------------------------------|
-| list     |  Lists all tasks in the to-do list.              |
-| add      |  Adds a task to the list.                         |
-| remove   |  Removes tasks from the list by their indexes.    |
-| done     |  Checks or unchecks a task as completed.         |
-| rename   |  Renames a task.                        |
-| priority |  Sets priority of a task.               |
-| clear    |  Clears all tasks from the list.                  |
-| help     |  Prints this message or the help for specific commands. |
+| Command   | Description                                    |
+|-----------|------------------------------------------------|
+| list      | List tasks                                    |
+| add       | Add task to list                              |
+| remove    | Remove tasks from list by indexes             |
+| rename    | Rename a task                                 |
+| priority  | Set the priority of a task                    |
+| clear     | Clear the list                                |
+| done      | Check/Uncheck a task                          |
+| help      | Print this message or the help of the given subcommand(s) |
+
+### Options
+
+| Option             | Description      |
+|--------------------|------------------|
+| -h, --help         | Print help       |
 
 
 ## Usage/Examples
