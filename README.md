@@ -8,10 +8,12 @@ Basic to-do app to learn Rust and use crates
 
 - [@elevenJune](https://github.com/ElevenJune)
 
+  ![Example screenshot](./todo-example.gif)
 
-## Features
 
-__Usage: todo [COMMAND]__
+## Usage
+
+__todo [COMMAND]__
 
 ### Commands
 
