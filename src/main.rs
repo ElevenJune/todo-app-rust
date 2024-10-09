@@ -94,3 +94,8 @@ fn main() {
         Some(cmd) => execute_cmd(&cmd,&mut list),
     }
 }
+
+
+//Improvements
+//1) Better error handling
+//2) unit tests

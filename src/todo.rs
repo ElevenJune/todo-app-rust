@@ -94,6 +94,10 @@ impl Todo{
     }
 
     pub fn list(&self){
+        if self.list.len() == 0 {
+            println!("[Empty list]");
+            return;
+        }
         for i in 0..self.list.len() {
             let task: &Task = &self.list[i];
             println!("{} - {} [{}]",i,task.to_formated_string(),task.priority);
@@ -167,3 +171,12 @@ impl Todo{
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn empty_list_len_is_zero(){
+        assert_eq!(Todo::new().list.len(),0);
+    }
+}
