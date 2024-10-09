@@ -88,6 +88,7 @@ fn main() {
             new
         }
     };
+    list.enable_autosave();
     
     match args.command {
         None => list.list(),
@@ -95,7 +96,7 @@ fn main() {
     }
 }
 
-
 //Improvements
 //1) Better error handling
 //2) unit tests
+//3) function to disable auto-save

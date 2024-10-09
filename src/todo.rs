@@ -39,16 +39,18 @@ impl Task{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Todo{
-    pub list: Vec<Task>
+    pub list: Vec<Task>,
+    autosave : bool
 }
 
 impl Todo{
-    const PATH: &str = "./tasks.json";
+    pub const PATH: &str = "./tasks.json";
 
 
     pub fn new() -> Self {
         Todo{
-            list:vec!()
+            list:vec!(),
+            autosave:false
         }
     }
 
@@ -59,10 +61,15 @@ impl Todo{
         }
     }
 
+    pub fn enable_autosave(&mut self){
+        self.autosave = true;
+    }
+
     pub fn add(&mut self, name:&String, priority:u8){
         println!("{} added",name);
         self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
         self.order_by_priority();
+        if !self.autosave {return;}
         let _ = self.save();
     }
 
@@ -72,6 +79,7 @@ impl Todo{
             return;
         }
         self.list[index].done = !self.list[index].done;
+        if !self.autosave {return;}
         match self.save() {
             Ok(_) => println!("{} state changed",self.list[index].name),
             Err(e) => println!("Error while changing state : {}",e)
@@ -89,6 +97,7 @@ impl Todo{
             self.list.remove(*i);
         }
         self.order_by_priority();
+        if !self.autosave {return Ok(());}
         let _ = self.save();
         Ok(())
     }
@@ -106,6 +115,7 @@ impl Todo{
 
     pub fn clear(&mut self){
         self.list = vec!();
+        if !self.autosave {return;}
         match self.save() {
             Ok(_) => println!("List cleared"),
             Err(e) => println!("Error while clearing list : {}",e)
@@ -119,6 +129,7 @@ impl Todo{
         }
         let old_name = self.list[index].name.clone();
         self.list[index].name = name.clone();
+        if !self.autosave {return;}
         match self.save() {
             Ok(_) => println!("{} renamed to {}",old_name,self.list[index].name),
             Err(e) => println!("Error while renaming : {}",e)
@@ -131,6 +142,7 @@ impl Todo{
             return;
         }
         self.list[index].priority = priority;
+        if !self.autosave {return;}
         match self.save() {
             Ok(_) => {
                 println!("{} priority changed to {}",
@@ -174,9 +186,115 @@ impl Todo{
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+    #[test]
+    fn new_task_feilds_are_correct(){
+        let task = Task::new(&"Test".to_string(),5);
+        assert_eq!(task.name,"Test");
+        assert_eq!(task.priority,5);
+        assert_eq!(task.done,false);
+    }
+
+    #[test]
+    fn task_to_str_is_correct(){
+        assert_eq!(Task::new(&"Small".to_string(),1).to_formated_string(),
+        "Small".normal());
+        assert_eq!(Task::new(&"Normal".to_string(),5).to_formated_string(),
+        "Normal".red());
+        assert_eq!(Task::new(&"Highest".to_string(),9).to_formated_string(),
+        "Highest".red().bold());
+    }
     
     #[test]
     fn empty_list_len_is_zero(){
-        assert_eq!(Todo::new().list.len(),0);
+        let todo = Todo::new();
+        assert_eq!(todo.list.len(), 0);
+    }
+
+    #[test]
+    fn add_task_increases_length() {
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        assert_eq!(todo.list.len(), 1);
+    }
+
+    #[test]
+    fn added_task_correct_info() {
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        assert_eq!(todo.list[0].name,"Task1".to_string());
+        assert_eq!(todo.list[0].priority,2);
+        assert_eq!(todo.list[0].done,false);
+    }
+
+    #[test]
+    fn rename_priority_and_done_updates(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.rename(0,&"Task2".to_string());
+        assert_eq!(todo.list[0].name,"Task2".to_string());
+        todo.set_priority(0,5);
+        assert_eq!(todo.list[0].priority,5);
+        todo.done(0);
+        assert_eq!(todo.list[0].done,true);
+    }
+
+    #[test]
+    fn serialize_and_deserialize_ok(){
+        let mut todo = Todo::new();
+        todo.enable_autosave();
+        todo.add(&"Task1".to_string(),2);
+        let todo_read = Todo::read_from_file(Todo::PATH).unwrap();
+        assert_eq!(todo.list[0].name,todo_read.list[0].name);
+        assert_eq!(todo.list[0].priority,todo_read.list[0].priority);
+        assert_eq!(todo.list[0].done,todo_read.list[0].done);
+    }
+
+    #[test]
+    fn remove_task(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.add(&"Task2".to_string(),2);
+        assert_eq!(todo.remove(&vec!(0)),Ok(()));
+        assert_eq!(todo.list.len(),1);
+        assert_eq!(todo.list[0].name,"Task2".to_string());
+    }
+
+    #[test]
+    fn remove_task_out_of_bounds(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.add(&"Task2".to_string(),2);
+        assert_eq!(todo.remove(&vec!(0,2)),Err(()));
+    }
+
+    #[test]
+    fn clear_list(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.add(&"Task2".to_string(),2);
+        todo.clear();
+        assert_eq!(todo.list.len(),0);
+    }
+
+    #[test]
+    fn order_by_priority(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.add(&"Task2".to_string(),5);
+        todo.add(&"Task3".to_string(),1);
+        todo.order_by_priority();
+        assert_eq!(todo.list[0].name,"Task2".to_string());
+        assert_eq!(todo.list[1].name,"Task1".to_string());
+        assert_eq!(todo.list[2].name,"Task3".to_string());
+    }
+
+    #[test]
+    fn set_priority_out_of_bounds(){
+        let mut todo = Todo::new();
+        todo.add(&"Task1".to_string(),2);
+        todo.set_priority(1,5);
+        assert_eq!(todo.list[0].priority,2);
     }
 }
