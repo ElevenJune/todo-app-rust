@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs::{File};
 use std::io::{self, Write, Read};
+use std::env;
 use colored::*;
 
 //==== Task
@@ -55,9 +56,13 @@ impl Todo{
     }
 
     pub fn load() -> Option<Self>{
-        match Self::read_from_file(Self::PATH){
-            Ok(todo)=>return Some(todo),
-            Err(_e)=>return None
+        let path = match env::var("TODO_PATH") {
+            Ok(val) => val,
+            Err(_e) => Self::PATH.to_string(),
+        };
+        match Self::read_from_file(path.as_str()){
+            Ok(todo)=> Some(todo),
+            Err(_e)=> None
         }
     }
 

@@ -98,5 +98,5 @@ fn main() {
 
 //Improvements
 //1) Better error handling
-//2) unit tests
+//2) handle path to save file as argument
 //3) function to disable auto-save
