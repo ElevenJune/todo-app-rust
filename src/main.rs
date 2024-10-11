@@ -7,6 +7,10 @@ use crate::todo::Todo;
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "todo")]
 #[command(about = "A basic Todo app in Rust", long_about = None)]
+#[command(about, version, after_help = 
+    "The data are stored in $TODO_PATH\n\
+    You can modify it by calling 'export TODO_PATH=...' (Linux)"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

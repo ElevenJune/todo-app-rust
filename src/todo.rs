@@ -160,16 +160,6 @@ impl Todo{
         }
     }
 
-    fn sort_list(&mut self){
-        self.list.sort_by(|a, b| {
-            if a.done != b.done {
-                a.done.cmp(&b.done)
-            }else{
-                b.priority.cmp(&a.priority)
-            }
-        });
-    }
-
     pub fn save(&self) -> Result<(), std::io::Error> {
         let path = Self::load_path();
         println!("Saving to file: {}", path);
@@ -184,6 +174,17 @@ impl Todo{
         f.write_all(serialized.as_bytes())?;
 
         Ok(())
+    }
+
+// ---- Private
+    fn sort_list(&mut self){
+        self.list.sort_by(|a, b| {
+            if a.done != b.done {
+                a.done.cmp(&b.done)
+            }else{
+                b.priority.cmp(&a.priority)
+            }
+        });
     }
 
     fn read_from_file(path: &str) -> Result<Todo, io::Error> {
@@ -204,9 +205,9 @@ impl Todo{
         }
     }
 
-    pub fn set_path(path: &str) {
+    /*pub fn set_path(path: &str) {
         env::set_var(Self::PATH_VAR, path);
-    }
+    }*/
 }
 
 #[cfg(test)]
@@ -324,7 +325,7 @@ mod tests {
         assert_eq!(todo.list[0].priority,2);
     }
 
-    #[test]
+    /*#[test]
     fn set_path_var(){
         let previous = Todo::load_path();
         let new = "./test.json";
@@ -332,5 +333,5 @@ mod tests {
         assert_eq!(Todo::load_path(),new);
         Todo::set_path(&previous);
         println!("Restored to {}",previous);
-    }
+    }*/
 }
