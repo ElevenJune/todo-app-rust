@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::fs::{File};
+use std::fs::File;
 use std::io::{self, Write, Read};
 use std::env;
 use colored::*;
@@ -7,6 +7,7 @@ use colored::*;
 //==== Task
 
 #[derive(Serialize, Deserialize, Debug)]
+///Represents a task with a name, a priority and a state
 pub struct Task{
     pub name:String,
     pub priority:u8,
@@ -22,10 +23,11 @@ impl Task{
         }
     }
 
+    ///Returns a colored string representing the task
     pub fn to_formated_string(&self) -> ColoredString{
         let mut displayed_name = self.name.normal();
         if self.done {
-            displayed_name = displayed_name.strikethrough();
+            return displayed_name.strikethrough();
         }
         displayed_name = match self.priority{
             0..=2 => displayed_name,
@@ -45,7 +47,8 @@ pub struct Todo{
 }
 
 impl Todo{
-    pub const PATH: &str = "./tasks.json";
+    pub const DEFAULT_PATH: &str = "./tasks.json";
+    pub const PATH_VAR: &str = "TODO_PATH";
 
 
     pub fn new() -> Self {
@@ -56,13 +59,10 @@ impl Todo{
     }
 
     pub fn load() -> Option<Self>{
-        let path = match env::var("TODO_PATH") {
-            Ok(val) => val,
-            Err(_e) => Self::PATH.to_string(),
-        };
+        let path = Self::load_path();
         match Self::read_from_file(path.as_str()){
             Ok(todo)=> Some(todo),
-            Err(_e)=> None
+            Err(_e)=> {println!("Error while reading {}",_e); None}
         }
     }
 
@@ -73,7 +73,7 @@ impl Todo{
     pub fn add(&mut self, name:&String, priority:u8){
         println!("{} added",name);
         self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
-        self.order_by_priority();
+        self.sort_list();
         if !self.autosave {return;}
         let _ = self.save();
     }
@@ -84,6 +84,7 @@ impl Todo{
             return;
         }
         self.list[index].done = !self.list[index].done;
+        self.sort_list();
         if !self.autosave {return;}
         match self.save() {
             Ok(_) => println!("{} state changed",self.list[index].name),
@@ -101,7 +102,7 @@ impl Todo{
             }
             self.list.remove(*i);
         }
-        self.order_by_priority();
+        self.sort_list();
         if !self.autosave {return Ok(());}
         let _ = self.save();
         Ok(())
@@ -153,20 +154,27 @@ impl Todo{
                 println!("{} priority changed to {}",
                 self.list[index].name.clone(),
                 self.list[index].priority);
-                self.order_by_priority();
+                self.sort_list();
             }
             Err(e) => println!("Error while changing priority : {}",e)
         }
     }
 
-    fn order_by_priority(&mut self){
-        self.list.sort_by(|a, b| b.priority.cmp(&a.priority));
+    fn sort_list(&mut self){
+        self.list.sort_by(|a, b| {
+            if a.done != b.done {
+                a.done.cmp(&b.done)
+            }else{
+                b.priority.cmp(&a.priority)
+            }
+        });
     }
 
     pub fn save(&self) -> Result<(), std::io::Error> {
-
+        let path = Self::load_path();
+        println!("Saving to file: {}", path);
         // Create/open the file
-        let mut f = File::create(Self::PATH)?;
+        let mut f = File::create(path)?;
 
         // Serialize the struct
         let serialized = serde_json::to_string(&self)
@@ -179,12 +187,25 @@ impl Todo{
     }
 
     fn read_from_file(path: &str) -> Result<Todo, io::Error> {
+        println!("Reading from file: {}", path);
         let mut file = File::open(path)?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
         let todo: Todo = serde_json::from_str(&buff)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Failed to parse JSON: {}", e)))?;
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                format!("Failed to parse JSON: {}", e)))?;
         Ok(todo)
+    }
+
+    fn load_path() -> String {
+        match env::var(Self::PATH_VAR) {
+            Ok(val) => val,
+            Err(_e) => Self::DEFAULT_PATH.to_string()
+        }
+    }
+
+    pub fn set_path(path: &str) {
+        env::set_var(Self::PATH_VAR, path);
     }
 }
 
@@ -250,7 +271,7 @@ mod tests {
         let mut todo = Todo::new();
         todo.enable_autosave();
         todo.add(&"Task1".to_string(),2);
-        let todo_read = Todo::read_from_file(Todo::PATH).unwrap();
+        let todo_read = Todo::read_from_file(Todo::DEFAULT_PATH).unwrap();
         assert_eq!(todo.list[0].name,todo_read.list[0].name);
         assert_eq!(todo.list[0].priority,todo_read.list[0].priority);
         assert_eq!(todo.list[0].done,todo_read.list[0].done);
@@ -284,12 +305,12 @@ mod tests {
     }
 
     #[test]
-    fn order_by_priority(){
+    fn sort_list(){
         let mut todo = Todo::new();
         todo.add(&"Task1".to_string(),2);
         todo.add(&"Task2".to_string(),5);
         todo.add(&"Task3".to_string(),1);
-        todo.order_by_priority();
+        todo.sort_list();
         assert_eq!(todo.list[0].name,"Task2".to_string());
         assert_eq!(todo.list[1].name,"Task1".to_string());
         assert_eq!(todo.list[2].name,"Task3".to_string());
@@ -301,5 +322,15 @@ mod tests {
         todo.add(&"Task1".to_string(),2);
         todo.set_priority(1,5);
         assert_eq!(todo.list[0].priority,2);
+    }
+
+    #[test]
+    fn set_path_var(){
+        let previous = Todo::load_path();
+        let new = "./test.json";
+        Todo::set_path(new);
+        assert_eq!(Todo::load_path(),new);
+        Todo::set_path(&previous);
+        println!("Restored to {}",previous);
     }
 }

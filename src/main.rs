@@ -55,6 +55,11 @@ enum Commands {
         ///Index of the task to update
         index: usize,
     },
+    /*#[command(arg_required_else_help = true)]
+    SetPath {
+        ///path where to save and load
+        path: String,
+    },*/
 }
 
 fn execute_cmd(cmd: &Commands, list:&mut Todo){
@@ -67,6 +72,7 @@ fn execute_cmd(cmd: &Commands, list:&mut Todo){
             }},
         Commands::Rename{index,new_name} => {list.rename(*index,new_name); list.list();}
         Commands::Clear => list.clear(),
+        //Commands::SetPath { path } => {Todo::set_path(path); let _ = list.save();}
         Commands::Done{index} => {list.done(*index); list.list();},
         Commands::Priority{index,new_priority} => {list.set_priority(*index,*new_priority); list.list();}
         _ => list.list(),
@@ -75,6 +81,8 @@ fn execute_cmd(cmd: &Commands, list:&mut Todo){
 
 fn main() {
     let args = Cli::parse();
+
+    
     let mut list = match Todo::load(){
         Some(todo) => todo,
         None => {
@@ -92,7 +100,9 @@ fn main() {
     
     match args.command {
         None => list.list(),
-        Some(cmd) => execute_cmd(&cmd,&mut list),
+        Some(cmd) => {
+            execute_cmd(&cmd,&mut list)
+        }
     }
 }
 
