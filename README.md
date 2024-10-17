@@ -38,12 +38,22 @@ __todo [COMMAND]__
 
 ## Usage/Examples
 
-- todo add test
-- todo add high_priority_task 10
-- todo //will call todo list
+`todo add task` adds a new task with priority 0
+
+`todo add high_priority_task 10` adds a new task with priority 10
+
+`todo` (does the same as `todo list`) lists the tasks
+
+`todo rename 0 normal_task` renames the first task
+
+`todo priority 0 2` changes the priority of the first task to 2
+
+`todo remove 0`
 
 ## Crates used
 - serde_json : serialization to json
-- colorized : colored terminal output
+- colored : colored terminal output
 - clap : command line argument parser
+- thiserror : custom errors / unified erros
+- dialoguer : confirmation message
 
