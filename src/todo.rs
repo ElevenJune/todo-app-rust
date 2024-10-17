@@ -116,6 +116,7 @@ impl Todo{
 
     pub fn clear(&mut self){
         self.list = vec!();
+        println!("List cleared");
     }
 
     pub fn rename(&mut self, index:usize, name:&String){
