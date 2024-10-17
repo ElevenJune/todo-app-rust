@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::{self, Write, Read};
+use std::io::{Write, Read};
 use std::env;
 use colored::*;
+use thiserror::Error;
 
 //==== Task
 
@@ -42,8 +43,15 @@ impl Task{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Todo{
-    pub list: Vec<Task>,
-    autosave : bool
+    pub list: Vec<Task>
+}
+
+#[derive(Debug, Error)]
+pub enum TodoFileError {
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("Serialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
 }
 
 impl Todo{
@@ -53,29 +61,19 @@ impl Todo{
 
     pub fn new() -> Self {
         Todo{
-            list:vec!(),
-            autosave:false
+            list:vec!()
         }
     }
 
-    pub fn load() -> Option<Self>{
+    pub fn load() -> Result<Self,TodoFileError>{
         let path = Self::load_path();
-        match Self::read_from_file(path.as_str()){
-            Ok(todo)=> Some(todo),
-            Err(_e)=> {println!("Error : {}",_e); None}
-        }
-    }
-
-    pub fn enable_autosave(&mut self){
-        self.autosave = true;
+        Self::read_from_file(path.as_str())
     }
 
     pub fn add(&mut self, name:&String, priority:u8){
         println!("{} added",name);
         self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
         self.sort_list();
-        if !self.autosave {return;}
-        let _ = self.save();
     }
 
     pub fn done(&mut self, index:usize){
@@ -85,7 +83,6 @@ impl Todo{
         }
         self.list[index].done = !self.list[index].done;
         self.sort_list();
-        if !self.autosave {return;}
         match self.save() {
             Ok(_) => println!("{} state changed",self.list[index].name),
             Err(e) => println!("Error while changing state : {}",e)
@@ -103,8 +100,6 @@ impl Todo{
             self.list.remove(*i);
         }
         self.sort_list();
-        if !self.autosave {return Ok(());}
-        let _ = self.save();
         Ok(())
     }
 
@@ -121,11 +116,6 @@ impl Todo{
 
     pub fn clear(&mut self){
         self.list = vec!();
-        if !self.autosave {return;}
-        match self.save() {
-            Ok(_) => println!("List cleared"),
-            Err(e) => println!("Error while clearing list : {}",e)
-        }
     }
 
     pub fn rename(&mut self, index:usize, name:&String){
@@ -133,13 +123,7 @@ impl Todo{
             println!("Index out of bounds");
             return;
         }
-        let old_name = self.list[index].name.clone();
         self.list[index].name = name.clone();
-        if !self.autosave {return;}
-        match self.save() {
-            Ok(_) => println!("{} renamed to {}",old_name,self.list[index].name),
-            Err(e) => println!("Error while renaming : {}",e)
-        }
     }
 
     pub fn set_priority(&mut self, index:usize, priority:u8){
@@ -148,27 +132,16 @@ impl Todo{
             return;
         }
         self.list[index].priority = priority;
-        if !self.autosave {return;}
-        match self.save() {
-            Ok(_) => {
-                println!("{} priority changed to {}",
-                self.list[index].name.clone(),
-                self.list[index].priority);
-                self.sort_list();
-            }
-            Err(e) => println!("Error while changing priority : {}",e)
-        }
     }
 
-    pub fn save(&self) -> Result<(), std::io::Error> {
+    pub fn save(&self) -> Result<(), TodoFileError> {
         let path = Self::load_path();
         println!("Saving to file: {}", path);
         // Create/open the file
         let mut f = File::create(path)?;
 
         // Serialize the struct
-        let serialized = serde_json::to_string(&self)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let serialized = serde_json::to_string(&self)?;
 
         // Write to file
         f.write_all(serialized.as_bytes())?;
@@ -194,14 +167,14 @@ impl Todo{
         });
     }
 
-    fn read_from_file(path: &str) -> Result<Todo, io::Error> {
+    fn read_from_file(path: &str) -> Result<Todo, TodoFileError> {
         println!("Reading from file: {}", path);
         let mut file = File::open(path)?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
-        let todo: Todo = serde_json::from_str(&buff)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
-                format!("Failed to parse JSON: {}", e)))?;
+        let todo: Todo = serde_json::from_str(&buff)?;
+            /*.map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
+                format!("Failed to parse JSON: {}", e)))?;*/
         Ok(todo)
     }
 
