@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use dialoguer::{theme::ColorfulTheme, Confirm};
 mod todo;
 
 use crate::todo::Todo;
@@ -83,25 +84,36 @@ fn execute_cmd(cmd: &Commands, list:&mut Todo){
     }
 }
 
-fn main() {
-    let args = Cli::parse();
-
-    
-    let mut list = match Todo::load(){
-        Some(todo) => todo,
+fn main() {    
+    let mut list:Todo;
+    match Todo::load(){
+        Some(todo) => list=todo,
         None => {
-           println!("Could no read tasks.json, a new empty list will be created.");
-           let new = Todo::new();
-           if let Err(save_error) = new.save() {
-                println!("Failed to save the new list: {}", save_error);
-            } else {
-                println!("New empty list generated");
-            }
-            new
+            println!("Could not read {}, a new empty list will be created.",Todo::load_path());
+            println!("By creating the new list, the previous data will be erased");
+
+            if Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("Do you want to continue?")
+            .interact()
+            .unwrap()
+            {
+                let new = Todo::new();
+                if let Err(save_error) = new.save() {
+                    println!("Failed to save the new list: {}", save_error);
+                } else {
+                    println!("New empty list generated");
+                }
+                list=new;
+        } else {
+            println!("Exiting...");
+            return;
+        }
+
         }
     };
     list.enable_autosave();
-    
+
+    let args = Cli::parse();
     match args.command {
         None => list.list(),
         Some(cmd) => {

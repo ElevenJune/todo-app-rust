@@ -62,7 +62,7 @@ impl Todo{
         let path = Self::load_path();
         match Self::read_from_file(path.as_str()){
             Ok(todo)=> Some(todo),
-            Err(_e)=> {println!("Error while reading {}",_e); None}
+            Err(_e)=> {println!("Error : {}",_e); None}
         }
     }
 
@@ -176,6 +176,13 @@ impl Todo{
         Ok(())
     }
 
+    pub fn load_path() -> String {
+        match env::var(Self::PATH_VAR) {
+            Ok(val) => val,
+            Err(_e) => Self::DEFAULT_PATH.to_string()
+        }
+    }
+
 // ---- Private
     fn sort_list(&mut self){
         self.list.sort_by(|a, b| {
@@ -196,13 +203,6 @@ impl Todo{
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
                 format!("Failed to parse JSON: {}", e)))?;
         Ok(todo)
-    }
-
-    fn load_path() -> String {
-        match env::var(Self::PATH_VAR) {
-            Ok(val) => val,
-            Err(_e) => Self::DEFAULT_PATH.to_string()
-        }
     }
 
     /*pub fn set_path(path: &str) {
