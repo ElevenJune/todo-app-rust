@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use clap::{Parser, Subcommand};
 //use colored::*;
 use dialoguer::{theme::ColorfulTheme, Confirm};
@@ -5,14 +7,15 @@ use todo::TodoFileError;
 mod todo;
 
 //Ratatui
-use color_eyre::Result;
+use color_eyre::{owo_colors::OwoColorize, Result};
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Constraint, Layout, Rect},
+    prelude::Span,
     style::{
-        palette::tailwind::{BLUE, GREEN, SLATE},
-        Color, Modifier, Style, Stylize,
+        palette::tailwind::{BLUE, EMERALD, GREEN},
+        Color, Modifier, Style, Styled, Stylize,
     },
     symbols,
     text::Line,
@@ -136,16 +139,16 @@ fn create_empty_list() -> Todo {
 }
 
 fn main() -> Result<()> {
-    let mut app : App = App::new();
+    let list: Todo;
     match Todo::load() {
-        Ok(todo) => app.list = todo,
+        Ok(todo) => list = todo,
         Err(TodoFileError::IoError(e)) => {
             println!(
                 "Could not read {}, a new empty list will be created.\nError : {}",
                 Todo::load_path(),
                 e
             );
-            app.list = create_empty_list();
+            list = create_empty_list();
         }
         Err(TodoFileError::SerializationError(e)) => {
             let error = format!(
@@ -163,13 +166,16 @@ fn main() -> Result<()> {
                 .interact()
                 .unwrap()
             {
-                app.list = create_empty_list();
+                list = create_empty_list();
             } else {
                 println!("Exiting...");
-                //return Err();
+                panic!();
             }
         }
     };
+
+    let app: App = App::new(list);
+
     color_eyre::install()?;
     let terminal = ratatui::init();
     let app_result = app.run(terminal);
@@ -192,11 +198,15 @@ fn main() -> Result<()> {
     }*/
 }
 
-const TODO_HEADER_STYLE: Style = Style::new().fg(SLATE.c100).bg(BLUE.c800);
-const NORMAL_ROW_BG: Color = SLATE.c950;
-const ALT_ROW_BG_COLOR: Color = SLATE.c900;
-const SELECTED_STYLE: Style = Style::new().bg(SLATE.c800).add_modifier(Modifier::BOLD);
-const TEXT_FG_COLOR: Color = SLATE.c200;
+const TODO_HEADER_STYLE: Style = Style::new().fg(EMERALD.c100).bg(EMERALD.c800);
+const NORMAL_ROW_BG: Color = EMERALD.c950;
+const ALT_ROW_BG_COLOR: Color = EMERALD.c900;
+const EDIT_ROW_COLOR: Color = EMERALD.c700;
+const EDIT_STYLE: Style = Style::new().add_modifier(Modifier::BOLD).fg(Color::Cyan);
+const SELECTED_STYLE: Style = Style::new().bg(EMERALD.c500).add_modifier(Modifier::BOLD);
+const INFO_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
+const TEXT_FG_COLOR: Color = EMERALD.c200;
+const TEXT_STYLE: Style = Style::new().fg(TEXT_FG_COLOR);
 const COMPLETED_TEXT_FG_COLOR: Color = GREEN.c500;
 
 #[derive(Debug)]
@@ -204,6 +214,9 @@ pub struct App {
     list: Todo,
     exit: bool,
     state: ListState,
+    edit: bool,
+    edit_name: String,
+    edit_priority: u8,
 }
 
 impl App {
@@ -218,22 +231,48 @@ impl App {
         Ok(())
     }
 
-    pub fn new() -> Self{
-        App { list: Todo::new(), exit: false, state:ListState::default() }
+    pub fn new(todo: Todo) -> Self {
+        App {
+            list: todo,
+            exit: false,
+            state: ListState::default(),
+            edit: false,
+            edit_name: String::new(),
+            edit_priority: 0,
+        }
     }
 
     fn handle_key(&mut self, key: KeyEvent) {
         if key.kind != KeyEventKind::Press {
             return;
         }
+        if self.edit {
+            match key.code {
+                KeyCode::Char('+') => self.change_priority(true),
+                KeyCode::Char('-') => self.change_priority(false),
+                KeyCode::Char(c) => self.add_text(c),
+                KeyCode::Backspace => self.erase_text(),
+                KeyCode::Enter => self.toggle_edit_mode(),
+                _ => {}
+            }
+            return;
+        }
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.exit = true,
+            KeyCode::Char('q') | KeyCode::Esc => {
+                let _ = self.list.save();
+                self.exit = true
+            }
             KeyCode::Char('h') | KeyCode::Left => self.select_none(),
             KeyCode::Char('j') | KeyCode::Down => self.select_next(),
             KeyCode::Char('k') | KeyCode::Up => self.select_previous(),
             KeyCode::Char('g') | KeyCode::Home => self.select_first(),
             KeyCode::Char('G') | KeyCode::End => self.select_last(),
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+            KeyCode::Char('a') => {
+                self.list.add(&"".to_string(), 0);
+                self.edit = true
+            }
+            KeyCode::Enter => self.toggle_edit_mode(),
+            KeyCode::Char('l') | KeyCode::Right => {
                 self.toggle_status();
             }
             _ => {}
@@ -259,14 +298,53 @@ impl App {
         self.state.select_last();
     }
 
+    fn toggle_edit_mode(&mut self) {
+        let current_task;
+        let current_task_index: usize;
+        match self.state.selected() {
+            Some(i) => {
+                current_task = self.list.task(i);
+                current_task_index = i;
+            }
+            None => return,
+        }
+        self.edit = !self.edit;
+        if self.edit {
+            //start editing
+            self.edit_name = current_task.name.clone();
+            self.edit_priority = current_task.priority;
+        } else {
+            //edit finished
+            self.list
+                .rename(current_task_index, &self.edit_name.clone());
+            self.list
+                .set_priority(current_task_index, self.edit_priority);
+        }
+    }
+
     /// Changes the status of the selected list item
     fn toggle_status(&mut self) {
         if let Some(i) = self.state.selected() {
-            self.list.list[i].done = match self.list.list[i].done {
-                true => false,
-                false => true,
-            }
+            self.list.done(i);
         }
+    }
+
+    fn add_text(&mut self, text: char) -> () {
+        self.edit_name.push(text);
+    }
+
+    fn change_priority(&mut self, increment: bool) -> () {
+        if increment {
+            if self.edit_priority==10 {return;}
+            self.edit_priority += 1;
+        } else {
+            if self.edit_priority<=0 {return;}
+            self.edit_priority -= 1;
+        }
+    }
+
+    fn erase_text(&mut self) {
+        self.edit_name.pop();
     }
 
     fn render_header(area: Rect, buf: &mut Buffer) {
@@ -276,10 +354,17 @@ impl App {
             .render(area, buf);
     }
 
-    fn render_footer(area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom.")
-            .centered()
-            .render(area, buf);
+    fn render_footer(&self, area: Rect, buf: &mut Buffer) {
+        let text = if self.edit {
+            "Edit Mode, exit with Ctrl+c"
+        } else {
+            "Use ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom."
+        };
+        let mut par = Paragraph::new(text).centered();
+        if self.edit {
+            par = par.bold().red();
+        }
+        par.render(area, buf);
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
@@ -292,20 +377,32 @@ impl App {
 
         // Iterate through all elements in the `items` and stylize them.
         let items: Vec<ListItem> = self
-            .list.list
+            .list
+            .list
             .iter()
             .enumerate()
             .map(|(i, todo_item)| {
                 let color = alternate_colors(i);
-                ListItem::from(todo_item.name.clone()).bg(color)
+                let mut item = ListItem::from(todo_item.name.clone()).bg(color);
+                if todo_item.done {
+                    item = item.bg(Color::Green);
+                }
+                item
             })
             .collect();
+
+        let mut selected_style = SELECTED_STYLE;
+        let mut symbol = "=>";
+        if self.edit {
+            symbol = "E>";
+            selected_style=selected_style.bg(EDIT_ROW_COLOR);
+        };
 
         // Create a List from all list items and highlight the currently selected one
         let list = List::new(items)
             .block(block)
-            .highlight_style(SELECTED_STYLE)
-            .highlight_symbol(">")
+            .highlight_style(selected_style)
+            .highlight_symbol(symbol)
             .highlight_spacing(HighlightSpacing::Always);
 
         // We need to disambiguate this trait method as both `Widget` and `StatefulWidget` share the
@@ -314,15 +411,42 @@ impl App {
     }
 
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
-        // We get the info depending on the item's state.
-        let info = if let Some(i) = self.state.selected() {
-            match self.list.task(i).done {
-                true => format!("✓ DONE: {}", self.list.task(i).name),
-                false => format!("☐ TODO: {}", self.list.task(i).name),
+        let mut text: Vec<Line<'_>> = vec![];
+        let mut bg = NORMAL_ROW_BG;
+
+        match self.state.selected() {
+            Some(i) => {
+                let task = self.list.task(i);
+                let style = if self.edit { EDIT_STYLE } else { TEXT_STYLE };
+
+                let mut name_line = vec!["Name : ".red()];
+
+                let mut priority_line = vec!["Priority : ".red()];
+
+                let state_line = vec![
+                    "State : ".red(),
+                    Span::styled(format!("{}", task.done), TEXT_STYLE),
+                ];
+
+                if self.edit {
+                    name_line.push(Span::styled(&self.edit_name, style));
+                    priority_line.push(Span::styled(format!("{}", self.edit_priority), TEXT_STYLE));
+                    name_line.push(" ".bg(Color::White));
+                    priority_line.push(Span::styled(" (-/+)", TEXT_STYLE).bold());
+                    bg = EDIT_ROW_COLOR;
+                } else {
+                    name_line.push(Span::styled(&task.name, style));
+                    priority_line.push(Span::styled(format!("{}", task.priority), TEXT_STYLE));
+                }
+
+                text.push(Line::from(name_line));
+                text.push(Line::from(priority_line));
+                text.push(Line::from(state_line));
             }
-        } else {
-            "Nothing selected...".to_string()
-        };
+            None => {
+                text.push(Line::styled("Select a task", Style::new().gray().italic()));
+            }
+        }
 
         // We show the list item's info under the list in this paragraph
         let block = Block::new()
@@ -330,17 +454,15 @@ impl App {
             .borders(Borders::TOP)
             .border_set(symbols::border::EMPTY)
             .border_style(TODO_HEADER_STYLE)
-            .bg(NORMAL_ROW_BG)
+            .bg(bg)
             .padding(Padding::horizontal(1));
 
         // We can now render the item info
-        Paragraph::new(info)
+        Paragraph::new(text)
             .block(block)
-            .fg(TEXT_FG_COLOR)
             .wrap(Wrap { trim: false })
             .render(area, buf);
     }
-
 }
 
 impl Widget for &mut App {
@@ -353,10 +475,10 @@ impl Widget for &mut App {
         .areas(area);
 
         let [list_area, item_area] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
+            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
 
         App::render_header(header_area, buf);
-        App::render_footer(footer_area, buf);
+        self.render_footer(footer_area, buf);
         self.render_list(list_area, buf);
         self.render_selected_item(item_area, buf);
     }
@@ -372,12 +494,13 @@ const fn alternate_colors(i: usize) -> Color {
 
 impl From<&todo::Task> for ListItem<'_> {
     fn from(value: &todo::Task) -> Self {
-        let line = match value.done {
-            true => Line::styled(format!(" ☐ {}", value.name), TEXT_FG_COLOR),
-            false => {
-                Line::styled(format!(" ✓ {}", value.name), COMPLETED_TEXT_FG_COLOR)
-            }
-        };
+        let line = Line::styled(
+            format!(
+                "Name:{}\nPriority:{}\nDone:{}",
+                value.name, value.priority, value.done
+            ),
+            TEXT_FG_COLOR,
+        );
         ListItem::new(line)
     }
 }
