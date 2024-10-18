@@ -201,8 +201,8 @@ fn main() -> Result<()> {
 const TODO_HEADER_STYLE: Style = Style::new().fg(EMERALD.c100).bg(EMERALD.c800);
 const NORMAL_ROW_BG: Color = EMERALD.c950;
 const ALT_ROW_BG_COLOR: Color = EMERALD.c900;
-const EDIT_ROW_COLOR: Color = EMERALD.c700;
-const EDIT_STYLE: Style = Style::new().add_modifier(Modifier::BOLD).fg(Color::Cyan);
+const EDIT_ROW_COLOR: Color = EMERALD.c900;
+const EDIT_STYLE: Style = Style::new().bg(Color::Yellow).add_modifier(Modifier::BOLD);
 const SELECTED_STYLE: Style = Style::new().bg(EMERALD.c500).add_modifier(Modifier::BOLD);
 const INFO_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
 const TEXT_FG_COLOR: Color = EMERALD.c200;
@@ -383,10 +383,18 @@ impl App {
             .enumerate()
             .map(|(i, todo_item)| {
                 let color = alternate_colors(i);
-                let mut item = ListItem::from(todo_item.name.clone()).bg(color);
+                let displayed_name = todo_item.name.clone();
+                let mut item = ListItem::from(displayed_name).bg(color);
                 if todo_item.done {
-                    item = item.bg(Color::Green);
+                    item = item.add_modifier(Modifier::CROSSED_OUT);
                 }
+                else if todo_item.priority>5 {
+                    item = item.fg(Color::LightRed);
+                }
+                /*match self.state.selected(){
+                    Some(index) => if i==index {item = item.bg()}
+                    None => {}
+                }*/
                 item
             })
             .collect();
@@ -395,7 +403,7 @@ impl App {
         let mut symbol = "=>";
         if self.edit {
             symbol = "E>";
-            selected_style=selected_style.bg(EDIT_ROW_COLOR);
+            selected_style=selected_style.bg(Color::Yellow);//.add_modifier(Modifier::REVERSED);
         };
 
         // Create a List from all list items and highlight the currently selected one
@@ -430,8 +438,8 @@ impl App {
 
                 if self.edit {
                     name_line.push(Span::styled(&self.edit_name, style));
-                    priority_line.push(Span::styled(format!("{}", self.edit_priority), TEXT_STYLE));
-                    name_line.push(" ".bg(Color::White));
+                    priority_line.push(Span::styled(format!("{}", self.edit_priority), style));
+                    name_line.push("_".fg(Color::White).add_modifier(Modifier::BOLD));
                     priority_line.push(Span::styled(" (-/+)", TEXT_STYLE).bold());
                     bg = EDIT_ROW_COLOR;
                 } else {
