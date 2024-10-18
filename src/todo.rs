@@ -65,6 +65,10 @@ impl Todo{
         }
     }
 
+    pub fn task(&self, i:usize)->&Task{
+        self.task(i)
+    }
+
     pub fn load() -> Result<Self,TodoFileError>{
         let path = Self::load_path();
         Self::read_from_file(path.as_str())
