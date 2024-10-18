@@ -14,10 +14,10 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     prelude::Span,
     style::{
-        palette::tailwind::{BLUE, EMERALD, GREEN},
+        palette::tailwind::{AMBER, TEAL},
         Color, Modifier, Style, Styled, Stylize,
     },
-    symbols,
+    symbols::{self, border},
     text::Line,
     widgets::{
         Block, Borders, HighlightSpacing, List, ListItem, ListState, Padding, Paragraph,
@@ -198,16 +198,17 @@ fn main() -> Result<()> {
     }*/
 }
 
-const TODO_HEADER_STYLE: Style = Style::new().fg(EMERALD.c100).bg(EMERALD.c800);
-const NORMAL_ROW_BG: Color = EMERALD.c950;
-const ALT_ROW_BG_COLOR: Color = EMERALD.c900;
-const EDIT_ROW_COLOR: Color = EMERALD.c900;
-const EDIT_STYLE: Style = Style::new().bg(Color::Yellow).add_modifier(Modifier::BOLD);
-const SELECTED_STYLE: Style = Style::new().bg(EMERALD.c500).add_modifier(Modifier::BOLD);
-const INFO_STYLE: Style = Style::new().add_modifier(Modifier::BOLD);
-const TEXT_FG_COLOR: Color = EMERALD.c200;
+const TODO_HEADER_STYLE: Style = Style::new().fg(TEAL.c100).bg(TEAL.c800);
+const NORMAL_ROW_BG: Color = TEAL.c900;
+const ALT_ROW_BG_COLOR: Color = TEAL.c800;
+const EDIT_ROW_COLOR: Color = AMBER.c700;
+const EDIT_VALUE_COLOR: Color = AMBER.c500;
+const HIGH_PRIORITY_ROW: Style = Style::new().fg(TEAL.c100).add_modifier(Modifier::BOLD);
+const EDIT_STYLE: Style = Style::new().bg(EDIT_ROW_COLOR).add_modifier(Modifier::BOLD).fg(AMBER.c100);
+const EDIT_VALUE_STYLE: Style = Style::new().bg(EDIT_VALUE_COLOR).add_modifier(Modifier::BOLD).fg(AMBER.c100);
+const SELECTED_STYLE: Style = Style::new().bg(TEAL.c600).add_modifier(Modifier::BOLD);
+const TEXT_FG_COLOR: Color = TEAL.c200;
 const TEXT_STYLE: Style = Style::new().fg(TEXT_FG_COLOR);
-const COMPLETED_TEXT_FG_COLOR: Color = GREEN.c500;
 
 #[derive(Debug)]
 pub struct App {
@@ -252,7 +253,8 @@ impl App {
                 KeyCode::Char('-') => self.change_priority(false),
                 KeyCode::Char(c) => self.add_text(c),
                 KeyCode::Backspace => self.erase_text(),
-                KeyCode::Enter => self.toggle_edit_mode(),
+                KeyCode::Enter => self.toggle_edit_mode(false),
+                KeyCode::Esc => self.toggle_edit_mode(true),
                 _ => {}
             }
             return;
@@ -267,11 +269,9 @@ impl App {
             KeyCode::Char('k') | KeyCode::Up => self.select_previous(),
             KeyCode::Char('g') | KeyCode::Home => self.select_first(),
             KeyCode::Char('G') | KeyCode::End => self.select_last(),
-            KeyCode::Char('a') => {
-                self.list.add(&"".to_string(), 0);
-                self.edit = true
-            }
-            KeyCode::Enter => self.toggle_edit_mode(),
+            KeyCode::Char('a') => self.add_task(),
+            KeyCode::Char('r') => self.remove_task(),
+            KeyCode::Enter => self.toggle_edit_mode(false),
             KeyCode::Char('l') | KeyCode::Right => {
                 self.toggle_status();
             }
@@ -295,10 +295,24 @@ impl App {
     }
 
     fn select_last(&mut self) {
-        self.state.select_last();
+        if let Some(index) = self.list.items().len().checked_sub(1) {
+            self.state.select(Some(index));
+        }
     }
 
-    fn toggle_edit_mode(&mut self) {
+    fn add_task(&mut self) {
+        self.list.add(&"New".to_string(), 0);
+        self.select_last();
+        self.toggle_edit_mode(false);
+    }
+
+    fn remove_task(&mut self) {
+        if let Some(i) = self.state.selected() {
+            let _ = self.list.remove(&vec![i]);
+        }
+    }
+
+    fn toggle_edit_mode(&mut self, cancel:bool) {
         let current_task;
         let current_task_index: usize;
         match self.state.selected() {
@@ -308,7 +322,13 @@ impl App {
             }
             None => return,
         }
-        self.edit = !self.edit;
+        if cancel {
+            self.edit = false;
+            return;
+        } else {
+            self.edit = !self.edit;
+        }
+        
         if self.edit {
             //start editing
             self.edit_name = current_task.name.clone();
@@ -348,28 +368,30 @@ impl App {
     }
 
     fn render_header(area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Ratatui List Example")
+        Paragraph::new("Todo List Application")
             .bold()
             .centered()
+            .bg(TEAL.c500)
             .render(area, buf);
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
         let text = if self.edit {
-            "Edit Mode, exit with Ctrl+c"
+            "[Edit Mode]\nSave with Enter, Cancel with Esc\n-/+ to change priority, type to change name"
         } else {
-            "Use ↓↑ to move, ← to unselect, → to change status, g/G to go top/bottom."
+            "Use ↓↑ to move, ← to unselect, → to change status\n'a' to add a task. 'r' to remove a task"
         };
-        let mut par = Paragraph::new(text).centered();
-        if self.edit {
-            par = par.bold().red();
-        }
-        par.render(area, buf);
+        Paragraph::new(text)
+        .centered()
+        .bg(AMBER.c100)
+        .fg(EDIT_ROW_COLOR)
+        .bold()
+        .render(area, buf);
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
         let block = Block::new()
-            .title(Line::raw("TODO List").centered())
+            .title(Line::raw("Task List").centered())
             .borders(Borders::TOP)
             .border_set(symbols::border::EMPTY)
             .border_style(TODO_HEADER_STYLE)
@@ -389,7 +411,7 @@ impl App {
                     item = item.add_modifier(Modifier::CROSSED_OUT);
                 }
                 else if todo_item.priority>5 {
-                    item = item.fg(Color::LightRed);
+                    item = item.style(HIGH_PRIORITY_ROW);
                 }
                 /*match self.state.selected(){
                     Some(index) => if i==index {item = item.bg()}
@@ -400,10 +422,11 @@ impl App {
             .collect();
 
         let mut selected_style = SELECTED_STYLE;
-        let mut symbol = "=>";
+        let mut symbol = " => ";
         if self.edit {
-            symbol = "E>";
-            selected_style=selected_style.bg(Color::Yellow);//.add_modifier(Modifier::REVERSED);
+
+            symbol = "===>";
+            selected_style=EDIT_STYLE;//.add_modifier(Modifier::REVERSED);
         };
 
         // Create a List from all list items and highlight the currently selected one
@@ -420,12 +443,12 @@ impl App {
 
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         let mut text: Vec<Line<'_>> = vec![];
-        let mut bg = NORMAL_ROW_BG;
+        let border_style = if self.edit { EDIT_STYLE } else { TODO_HEADER_STYLE };
 
         match self.state.selected() {
             Some(i) => {
                 let task = self.list.task(i);
-                let style = if self.edit { EDIT_STYLE } else { TEXT_STYLE };
+                let style = if self.edit { EDIT_VALUE_STYLE } else { TEXT_STYLE };
 
                 let mut name_line = vec!["Name : ".red()];
 
@@ -439,9 +462,9 @@ impl App {
                 if self.edit {
                     name_line.push(Span::styled(&self.edit_name, style));
                     priority_line.push(Span::styled(format!("{}", self.edit_priority), style));
-                    name_line.push("_".fg(Color::White).add_modifier(Modifier::BOLD));
-                    priority_line.push(Span::styled(" (-/+)", TEXT_STYLE).bold());
-                    bg = EDIT_ROW_COLOR;
+                    name_line.push("_".fg(EDIT_VALUE_COLOR).add_modifier(Modifier::BOLD));
+                    priority_line.push(" (-/+)".fg(EDIT_VALUE_COLOR).bold());
+                    //bg = SELECTED_STYLE;
                 } else {
                     name_line.push(Span::styled(&task.name, style));
                     priority_line.push(Span::styled(format!("{}", task.priority), TEXT_STYLE));
@@ -458,11 +481,11 @@ impl App {
 
         // We show the list item's info under the list in this paragraph
         let block = Block::new()
-            .title(Line::raw("TODO Info").centered())
-            .borders(Borders::TOP)
+            .title(Line::raw("Task Information").centered())
+            .borders(Borders::all())
             .border_set(symbols::border::EMPTY)
-            .border_style(TODO_HEADER_STYLE)
-            .bg(bg)
+            .border_style(border_style)
+            .bg(NORMAL_ROW_BG)
             .padding(Padding::horizontal(1));
 
         // We can now render the item info
@@ -475,15 +498,17 @@ impl App {
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
+        let footer_length = if self.edit {3} else {2};
         let [header_area, main_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
-            Constraint::Length(1),
+            Constraint::Length(footer_length),
         ])
         .areas(area);
 
+        let info_weight = if self.edit {2} else {1};
         let [list_area, item_area] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
+            Layout::horizontal([Constraint::Fill(3-info_weight), Constraint::Fill(info_weight)]).areas(main_area);
 
         App::render_header(header_area, buf);
         self.render_footer(footer_area, buf);

@@ -80,7 +80,6 @@ impl Todo{
 
     pub fn add(&mut self, name:&String, priority:u8){
         self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
-        self.sort_list();
     }
 
     pub fn done(&mut self, index:usize){
