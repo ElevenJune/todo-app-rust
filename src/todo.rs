@@ -43,7 +43,7 @@ impl Task{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Todo{
-    pub list: Vec<Task>
+    list: Vec<Task>
 }
 
 #[derive(Debug, Error)]
@@ -65,28 +65,29 @@ impl Todo{
         }
     }
 
+    pub fn items(&self) -> &Vec<Task>{
+        &self.list
+    }
+
+    pub fn task(&self, i:usize)->&Task{
+        &self.list[i]
+    }
+
     pub fn load() -> Result<Self,TodoFileError>{
         let path = Self::load_path();
         Self::read_from_file(path.as_str())
     }
 
     pub fn add(&mut self, name:&String, priority:u8){
-        println!("{} added",name);
         self.list.push(Task::new(name,if priority> 10 {10} else {priority}));
-        self.sort_list();
     }
 
     pub fn done(&mut self, index:usize){
         if index >= self.list.len() {
-            println!("Index out of bounds");
             return;
         }
         self.list[index].done = !self.list[index].done;
         self.sort_list();
-        match self.save() {
-            Ok(_) => println!("{} state changed",self.list[index].name),
-            Err(e) => println!("Error while changing state : {}",e)
-        }
     }
 
     pub fn remove(&mut self, index:&Vec<usize>) -> Result<(),()> {
@@ -116,12 +117,10 @@ impl Todo{
 
     pub fn clear(&mut self){
         self.list = vec!();
-        println!("List cleared");
     }
 
     pub fn rename(&mut self, index:usize, name:&String){
         if index >= self.list.len() {
-            println!("Index out of bounds");
             return;
         }
         self.list[index].name = name.clone();
@@ -129,15 +128,14 @@ impl Todo{
 
     pub fn set_priority(&mut self, index:usize, priority:u8){
         if index >= self.list.len() {
-            println!("Index out of bounds");
             return;
         }
         self.list[index].priority = priority;
+        self.sort_list();
     }
 
-    pub fn save(&self) -> Result<(), TodoFileError> {
-        let path = Self::load_path();
-        println!("Saving to file: {}", path);
+    pub fn save_to(&self, path:String) -> Result<(), TodoFileError> {
+        //let path = Self::load_path();
         // Create/open the file
         let mut f = File::create(path)?;
 
@@ -148,6 +146,11 @@ impl Todo{
         f.write_all(serialized.as_bytes())?;
 
         Ok(())
+    }
+
+    pub fn save(&self) -> Result<(), TodoFileError> {
+        let path = Self::load_path();
+        self.save_to(path)
     }
 
     pub fn load_path() -> String {
@@ -169,7 +172,6 @@ impl Todo{
     }
 
     fn read_from_file(path: &str) -> Result<Todo, TodoFileError> {
-        println!("Reading from file: {}", path);
         let mut file = File::open(path)?;
         let mut buff = String::new();
         file.read_to_string(&mut buff)?;
@@ -244,9 +246,13 @@ mod tests {
     #[test]
     fn serialize_and_deserialize_ok(){
         let mut todo = Todo::new();
-        todo.enable_autosave();
         todo.add(&"Task1".to_string(),2);
-        let todo_read = Todo::read_from_file(Todo::DEFAULT_PATH).unwrap();
+        let save_path = "./test.json";
+        match todo.save_to(save_path.to_string()){
+            Err(_e)=> assert!(false),
+            _ => {}
+        };
+        let todo_read = Todo::read_from_file(&save_path).unwrap();
         assert_eq!(todo.list[0].name,todo_read.list[0].name);
         assert_eq!(todo.list[0].priority,todo_read.list[0].priority);
         assert_eq!(todo.list[0].done,todo_read.list[0].done);
