@@ -1,9 +1,14 @@
 
-# Basic to-do app in Rust
+# Basic to-do app in Rust, using ratatui GUI
 
-Basic to-do app to learn Rust and use crates
+Basic to-do app with [ratatui](https://ratatui.rs/) to learn Rust and use crates
 
-![Example screenshot](./todo-example.gif)
+If you are learning Rust and you want to see a simplier implementation, I recommend that you look at the v1.0 version (check the "See Also" section at the bottom)<br>
+This version implements command-line interaction using the clap crate.
+
+## Demo
+
+![Example screenshot](./todo-example-ratatui.gif)
 
 
 ## Authors
@@ -11,39 +16,42 @@ Basic to-do app to learn Rust and use crates
 - [@elevenJune](https://github.com/ElevenJune)
 
 
-
 ## Usage
 
-__todo [COMMAND]__
+`cargo run`
 
-### Commands
+## Features
 
-| Command   | Description                                    |
-|-----------|------------------------------------------------|
-| list      | List tasks                                    |
-| add       | Add task to list                              |
-| remove    | Remove tasks from list by indexes             |
-| rename    | Rename a task                                 |
-| priority  | Set the priority of a task                    |
-| clear     | Clear the list                                |
-| done      | Check/Uncheck a task                          |
-| help      | Print this message or the help of the given subcommand(s) |
+Creates a list of tasks and saves it to the $TODO_PATH environment variable.
 
-### Options
+If not defined, the tasks will be saved to ./tasks.json
 
-| Option             | Description      |
-|--------------------|------------------|
-| -h, --help         | Print help       |
+Possible actions:
+- Use arrows ↓↑ to select a task
+- Use arrow  ← to unselect
+- Add a task with "a"
+- Modify the selected task with "Enter"
+- -> Type to edit name
+- -> Use +/- to edit priority
+- Press "Enter" to save, or "Esc" to cancel changes
+- Press → to change status (Done/To do)
 
-
-## Usage/Examples
-
-- todo add test
-- todo add high_priority_task 10
-- todo //will call todo list
 
 ## Crates used
 - serde_json : serialization to json
-- colorized : colored terminal output
-- clap : command line argument parser
+- ratatui : GUI
+- dialoguer : confirmation message in case the list has be erased
+- thiserror : custom error
+- color-eyre : error handling used by ratatui
 
+## See Also
+[Version without ratatui, using clap instead](https://github.com/ElevenJune/todo-app-rust/tree/v1.0)
+
+You can switch to this version by executing<br>
+`cd ./todo-list-app`<br>
+`git checkout v1.0`<br>
+`cargo run`
+
+Demo:<br>
+
+![Example screenshot](./todo-example.gif)

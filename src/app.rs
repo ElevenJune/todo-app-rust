@@ -94,7 +94,7 @@ impl App {
             KeyCode::Char('g') | KeyCode::Home => self.select_first(),
             KeyCode::Char('G') | KeyCode::End => self.select_last(),
             KeyCode::Char('a') => self.add_task(),
-            KeyCode::Char('r') => self.remove_task(),
+            KeyCode::Delete => self.remove_task(),
             KeyCode::Enter => self.toggle_edit_mode(false),
             KeyCode::Char('l') | KeyCode::Right => {
                 self.toggle_status();
@@ -130,6 +130,7 @@ impl App {
         self.list.add(&"New".to_string(), 0);
         self.select_last();
         self.toggle_edit_mode(false);
+        self.edit_name.clear();
     }
 
     fn remove_task(&mut self) {

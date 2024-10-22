@@ -43,7 +43,7 @@ impl App {
         let text = if self.is_edit_mode() {
             "[Edit Mode]\nSave with Enter, Cancel with Esc\n-/+ to change priority, type to change name"
         } else {
-            "Use ↓↑ to move, ← to unselect, → to change status\n'a' to add a task. 'r' to remove a task"
+            "Use ↓↑ to move, ← to unselect, → to change status\n'a' to add a task. 'Delete' to remove a task"
         };
         Paragraph::new(text)
         .centered()
