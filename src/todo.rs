@@ -43,7 +43,7 @@ impl Task{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Todo{
-    pub list: Vec<Task>
+    list: Vec<Task>
 }
 
 #[derive(Debug, Error)]

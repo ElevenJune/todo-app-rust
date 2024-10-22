@@ -1,6 +1,5 @@
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Rect},
     prelude::Span,
     style::{
@@ -10,14 +9,10 @@ use ratatui::{
     symbols::{self},
     text::Line,
     widgets::{
-        Block, Borders, HighlightSpacing, List, ListItem, ListState, Padding, Paragraph,
+        Block, Borders, HighlightSpacing, List, ListItem, Padding, Paragraph,
         StatefulWidget, Widget, Wrap,
-    },
-    DefaultTerminal,
+    }
 };
-
-use crate::Todo;
-use color_eyre::Result;
 use crate::App;
 
 
@@ -26,23 +21,15 @@ const NORMAL_ROW_BG: Color = TEAL.c900;
 const ALT_ROW_BG_COLOR: Color = TEAL.c800;
 const EDIT_ROW_COLOR: Color = AMBER.c700;
 const EDIT_VALUE_COLOR: Color = AMBER.c500;
-const HIGH_PRIORITY_ROW: Style = Style::new().fg(TEAL.c100).add_modifier(Modifier::BOLD);
 const EDIT_STYLE: Style = Style::new().bg(EDIT_ROW_COLOR).add_modifier(Modifier::BOLD).fg(AMBER.c100);
 const EDIT_VALUE_STYLE: Style = Style::new().bg(EDIT_VALUE_COLOR).add_modifier(Modifier::BOLD).fg(AMBER.c100);
 const SELECTED_STYLE: Style = Style::new().bg(TEAL.c600).add_modifier(Modifier::BOLD);
 const TEXT_FG_COLOR: Color = TEAL.c200;
 const TEXT_STYLE: Style = Style::new().fg(TEXT_FG_COLOR);
 
-pub const fn alternate_colors(i: usize) -> Color {
-    if i % 2 == 0 {
-        NORMAL_ROW_BG
-    } else {
-        ALT_ROW_BG_COLOR
-    }
-}
-
 impl App {
 
+    //Renders header
     fn render_header(area: Rect, buf: &mut Buffer) {
         Paragraph::new("Todo List Application")
             .bold()
@@ -51,8 +38,9 @@ impl App {
             .render(area, buf);
     }
 
+    //Renders footer
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        let text = if self.edit {
+        let text = if self.is_edit_mode() {
             "[Edit Mode]\nSave with Enter, Cancel with Esc\n-/+ to change priority, type to change name"
         } else {
             "Use ↓↑ to move, ← to unselect, → to change status\n'a' to add a task. 'r' to remove a task"
@@ -65,6 +53,7 @@ impl App {
         .render(area, buf);
     }
 
+    //Renders left list
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
         let block = Block::new()
             .title(Line::raw("Task List").centered())
@@ -76,7 +65,7 @@ impl App {
         // Iterate through all elements in the `items` and stylize them.
         let items: Vec<ListItem> = self
             .get_list()
-            .list
+            .items()
             .iter()
             .enumerate()
             .map(|(i, todo_item)| {
@@ -87,44 +76,37 @@ impl App {
                     item = item.add_modifier(Modifier::CROSSED_OUT);
                 }
                 else if todo_item.priority>5 {
-                    item = item.style(HIGH_PRIORITY_ROW);
+                    item = item.add_modifier(Modifier::BOLD).fg(AMBER.c100);
                 }
-                /*match self.state.selected(){
-                    Some(index) => if i==index {item = item.bg()}
-                    None => {}
-                }*/
                 item
             })
             .collect();
 
         let mut selected_style = SELECTED_STYLE;
         let mut symbol = " => ";
-        if self.edit {
-
+        if self.is_edit_mode() {
             symbol = "===>";
             selected_style=EDIT_STYLE;//.add_modifier(Modifier::REVERSED);
         };
 
-        // Create a List from all list items and highlight the currently selected one
         let list = List::new(items)
             .block(block)
             .highlight_style(selected_style)
             .highlight_symbol(symbol)
             .highlight_spacing(HighlightSpacing::Always);
 
-        // We need to disambiguate this trait method as both `Widget` and `StatefulWidget` share the
-        // same method name `render`.
         StatefulWidget::render(list, area, buf, &mut self.get_state());
     }
 
+    //Renders selected task (right)
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         let mut text: Vec<Line<'_>> = vec![];
-        let border_style = if self.edit { EDIT_STYLE } else { TODO_HEADER_STYLE };
+        let border_style = if self.is_edit_mode() { EDIT_STYLE } else { TODO_HEADER_STYLE };
 
         match &self.get_selected() {
             Some(i) => {
                 let task = self.get_list().task(*i);
-                let style = if self.edit { EDIT_VALUE_STYLE } else { TEXT_STYLE };
+                let style = if self.is_edit_mode() { EDIT_VALUE_STYLE } else { TEXT_STYLE };
 
                 let mut name_line = vec!["Name : ".red()];
 
@@ -135,12 +117,11 @@ impl App {
                     Span::styled(format!("{}", task.done), TEXT_STYLE),
                 ];
 
-                if self.edit {
-                    name_line.push(Span::styled(&self.edit_name, style));
-                    priority_line.push(Span::styled(format!("{}", self.edit_priority), style));
+                if self.is_edit_mode() {
+                    name_line.push(Span::styled(self.get_edit_name(), style));
+                    priority_line.push(Span::styled(format!("{}", self.get_edit_priority()), style));
                     name_line.push("_".fg(EDIT_VALUE_COLOR).add_modifier(Modifier::BOLD));
                     priority_line.push(" (-/+)".fg(EDIT_VALUE_COLOR).bold());
-                    //bg = SELECTED_STYLE;
                 } else {
                     name_line.push(Span::styled(&task.name, style));
                     priority_line.push(Span::styled(format!("{}", task.priority), TEXT_STYLE));
@@ -172,9 +153,10 @@ impl App {
     }
 }
 
+//Renders whole app
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let footer_length = if self.edit {3} else {2};
+        let footer_length = if self.is_edit_mode() {3} else {2};
         let [header_area, main_area, footer_area] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
@@ -182,7 +164,7 @@ impl Widget for &mut App {
         ])
         .areas(area);
 
-        let info_weight = if self.edit {2} else {1};
+        let info_weight = if self.is_edit_mode() {2} else {1};
         let [list_area, item_area] =
             Layout::horizontal([Constraint::Fill(3-info_weight), Constraint::Fill(info_weight)]).areas(main_area);
 
@@ -190,5 +172,13 @@ impl Widget for &mut App {
         self.render_footer(footer_area, buf);
         self.render_list(list_area, buf);
         self.render_selected_item(item_area, buf);
+    }
+}
+
+pub const fn alternate_colors(i: usize) -> Color {
+    if i % 2 == 0 {
+        NORMAL_ROW_BG
+    } else {
+        ALT_ROW_BG_COLOR
     }
 }

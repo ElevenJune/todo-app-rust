@@ -1,14 +1,10 @@
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use todo::TodoFileError;
+use color_eyre::Result;
+
 mod todo;
 mod app;
 mod ui;
-
-//Ratatui
-use color_eyre::Result;
-
-
-use todo::Todo;
+use todo::{Todo,TodoFileError};
 use app::App;
 
 
@@ -40,8 +36,6 @@ fn main() -> Result<()> {
                 "Parsing error while reading {}, a new empty list will be created.",
                 Todo::load_path()
             );
-            //.bold()
-            //.red();
             println!("{}", error);
             println!("Error is : {}", e);
             println!("By creating the new list, the previous data will be erased");

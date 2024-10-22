@@ -1,38 +1,23 @@
 use ratatui::{
-    buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
-    layout::{Constraint, Layout, Rect},
-    prelude::Span,
-    style::{
-        palette::tailwind::{AMBER, TEAL},
-        Color, Modifier, Style, Stylize,
-    },
-    symbols::{self},
-    text::Line,
-    widgets::{
-        Block, Borders, HighlightSpacing, List, ListItem, ListState, Padding, Paragraph,
-        StatefulWidget, Widget, Wrap,
-    },
+    widgets::ListState,
     DefaultTerminal,
 };
 
 use crate::Todo;
 use color_eyre::Result;
 
-use crate::ui;
-
 #[derive(Debug)]
 pub struct App {
     list: Todo,
     exit: bool,
     state: ListState,
-    pub edit: bool,
-    pub edit_name: String,
-    pub edit_priority: u8,
+    edit: bool,
+    edit_name: String,
+    edit_priority: u8,
 }
 
 impl App {
-    /// runs the application's main loop until the user quits
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
         while !self.exit {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
@@ -54,6 +39,8 @@ impl App {
         }
     }
 
+    //----Getters
+
     pub fn get_list(&self) -> &Todo{
         &self.list
     }
@@ -65,6 +52,20 @@ impl App {
     pub fn get_selected(&self) -> Option<usize>{
         self.state.selected()
     }
+
+    pub fn is_edit_mode(&self) -> bool{
+        self.edit
+    }
+
+    pub fn get_edit_name(&self) -> &String{
+        &self.edit_name
+    }
+
+    pub fn get_edit_priority(&self) -> u8{
+        self.edit_priority
+    }
+
+    //----Event handling
 
     fn handle_key(&mut self, key: KeyEvent) {
         if key.kind != KeyEventKind::Press {
@@ -123,6 +124,8 @@ impl App {
         }
     }
 
+    //----Actions
+
     fn add_task(&mut self) {
         self.list.add(&"New".to_string(), 0);
         self.select_last();
@@ -165,15 +168,18 @@ impl App {
         }
     }
 
-    /// Changes the status of the selected list item
     fn toggle_status(&mut self) {
-        if let Some(i) = self.state.selected() {
+        if let Some(i) = self.get_selected() {
             self.list.done(i);
         }
     }
 
     fn add_text(&mut self, text: char) -> () {
         self.edit_name.push(text);
+    }
+
+    fn erase_text(&mut self) {
+        self.edit_name.pop();
     }
 
     fn change_priority(&mut self, increment: bool) -> () {
@@ -184,10 +190,6 @@ impl App {
             if self.edit_priority<=0 {return;}
             self.edit_priority -= 1;
         }
-    }
-
-    fn erase_text(&mut self) {
-        self.edit_name.pop();
     }
 }
 
