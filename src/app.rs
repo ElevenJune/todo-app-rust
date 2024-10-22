@@ -135,6 +135,9 @@ impl App {
     fn remove_task(&mut self) {
         if let Some(i) = self.state.selected() {
             let _ = self.list.remove(&vec![i]);
+            if self.list.items().len()==0 {
+                self.select_none();
+            }
         }
     }
 
@@ -190,6 +193,81 @@ impl App {
             if self.edit_priority<=0 {return;}
             self.edit_priority -= 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+    #[test]
+    fn select_next_test() {
+        let mut app = App::new(Todo::new());
+        app.list.add(&"Task1".to_string(), 2);
+        app.list.add(&"Task2".to_string(), 2);
+        app.list.add(&"Task3".to_string(), 2);
+
+        app.get_state().select(None);
+        assert_eq!(app.get_selected(), None);
+        app.select_first();
+        assert_eq!(app.get_selected(), Some(0));
+        app.select_next();
+        assert_eq!(app.get_selected(), Some(1));
+        app.select_next();
+        assert_eq!(app.get_selected(), Some(2));
+        app.select_previous();
+        assert_eq!(app.get_selected(), Some(1));
+        app.select_last();
+        assert_eq!(app.get_selected(), Some(2));
+        app.select_none();
+        assert_eq!(app.get_selected(), None);
+    }
+
+    #[test]
+    fn edit_task_test(){
+        let mut app = App::new(Todo::new());
+        app.list.add(&"Task1".to_string(), 2);
+
+        app.select_first();
+        app.toggle_edit_mode(false);
+        app.erase_text();
+        app.add_text('2');
+        app.change_priority(true);
+        app.toggle_edit_mode(false);
+        assert_eq!(app.get_list().task(0).name, "Task2".to_string());
+        assert_eq!(app.get_list().task(0).priority, 3);
+    }
+
+    #[test]
+    fn edit_task_cancel_test(){
+        let mut app = App::new(Todo::new());
+        app.list.add(&"Task1".to_string(), 2);
+
+        app.select_first();
+        app.toggle_edit_mode(false);
+        app.erase_text();
+        app.add_text('2');
+        app.change_priority(true);
+        app.toggle_edit_mode(true);
+        assert_eq!(app.get_list().task(0).name, "Task1".to_string());
+        assert_eq!(app.get_list().task(0).priority, 2);
+    }
+
+    #[test]
+    fn add_task_test(){
+        let mut app = App::new(Todo::new());
+        app.add_task();
+        assert_eq!(app.get_list().task(0).name,"New".to_string());
+        assert_eq!(app.is_edit_mode(),true);
+        app.toggle_edit_mode(false);
+        app.select_first();
+        assert_eq!(app.get_selected(), Some(0));
+        app.remove_task();
+        app.remove_task();
+        app.remove_task();
+        assert_eq!(app.get_list().items().len(), 0);
+        assert_eq!(app.state.selected(), None);
     }
 }
 
